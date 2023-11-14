@@ -47,6 +47,7 @@ namespace tests
      * All outputs are sent to an standard output stream (who may be std::cout but not only)
      * @author alexandre guidet
      * @version 1
+     * @see https://github.com/AlexandreGuidet/SimpliestCPPUnitTests     
     */
     class Test
     {
@@ -74,7 +75,7 @@ namespace tests
                     test_code();                    
                 }
                 catch(...){
-                    fail("an exception occurs");
+                    fail("*** exception occurs ***");
                     failed++;
                 }                                
                 chrono.stop();
