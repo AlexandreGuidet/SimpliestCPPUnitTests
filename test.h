@@ -15,8 +15,8 @@ namespace tests
     class Chrono
     {
         private:
-            std::chrono::system_clock::time_point startTime;
-            std::chrono::system_clock::time_point stopTime;
+            std::chrono::high_resolution_clock::time_point startTime;
+            std::chrono::high_resolution_clock::time_point stopTime;
         public:
 	/**
 	* start the measure
