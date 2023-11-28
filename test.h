@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <chrono>
 #include <typeinfo>
+#include <thread>
 
 namespace tests
 {
@@ -38,6 +39,52 @@ namespace tests
                 return std::chrono::nanoseconds(stopTime-startTime).count()/1000000.0;
             }
     };
+    
+/**
+ * Simple watchdog inspired by J. Boccara Timer
+ * @see https://www.fluentcpp.com/2018/12/28/timer-cpp/
+*/
+    class WatchDog
+    {
+        private:            
+            bool cancelled;
+            int timeout;
+        public:
+        /**
+         * Initialize the dog watch 
+         * @param timeoutMS the timeout, in milliseconds
+         * note : the dog watch is not started yet
+        */
+            WatchDog(int timeoutMS): cancelled(false), timeout(timeoutMS){}
+
+        /**
+         * start the dog watch
+         * @param function the function to call when the time out occurs
+         * @tparam F the type of function (assumes that is no parameters)
+        */
+            template <typename F>
+            void start(F&& function)
+            {
+                cancelled=false;
+                std::thread thread( [=](){
+                    if(!cancelled)
+                    {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+                        if(!cancelled)
+                            function();
+                    }
+                } );                
+                thread.detach();
+            }    
+       
+            void cancel()
+            {
+                cancelled=true;
+            }       
+
+    };
+
+#define TIME_SLEEP 50
 
     /**
      * Very simple class to make units tests in C++
@@ -46,7 +93,7 @@ namespace tests
      * It computes the times taken for tests
      * All outputs are sent to an standard output stream (who may be std::cout but not only)
      * @author alexandre guidet
-     * @version 1
+     * @version 2
      * @see https://github.com/AlexandreGuidet/SimpliestCPPUnitTests     
     */
     class Test
@@ -56,28 +103,56 @@ namespace tests
             int passed;
             std::ostream& output;
             Chrono chrono;
+            WatchDog watch;
+            bool testing;
+
+            void run_test()
+            {
+                testing=true;
+                try{                                                          
+                    test_code();                                         
+                }
+                catch(...){
+                    fail("*** exception occurs ***");
+                    failed++;
+                }           
+                testing=false;      
+            }
         public:
         /**
          * Initialize the test. 
          * @param output the stream to output the tests (default : the standard output)
+         * @param timeout the timeout to cancel tests if it loops (default : 30s)
         */
-            Test(std::ostream& output=std::cout) : output(output), failed(0),passed(0){}
+            Test(std::ostream& output=std::cout, int timeout=30000) : output(output), failed(0),passed(0), watch(timeout){}
             virtual ~Test(){}
         /**
-         * Runs the test and outputs the results on the stream
+         * Runs the test (with control of watchdog) and outputs the results on the stream
         */
             void run(){
                 failed=0;
                 passed=0;
                 print_header();
-                chrono.start();
-                try{                    
-                    test_code();                    
+                chrono.start();      
+                
+                bool aborted=false;
+                watch.start([&aborted](){aborted=true;});  
+                std::thread test_thread( [this](){run_test();} );
+                
+                // loop and wait for one of the threads terminate
+                do
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(TIME_SLEEP));
                 }
-                catch(...){
-                    fail("*** exception occurs ***");
-                    failed++;
-                }                                
+                while(testing && !aborted);
+
+                if(aborted){                    
+                    fail("**** Timeout : the test does not respond ****");                    
+                }
+                else
+                    watch.cancel();   // no need to watchdog any more             
+
+                test_thread.detach();                  
                 chrono.stop();
                 print_resume();                
             }

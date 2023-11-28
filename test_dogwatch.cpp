@@ -5,7 +5,7 @@ int main()
 {
     std::cout << "Simple test of dogwatch"<<std::endl;
     bool end=false;
-    tests::DogWatch watch(3000);
+    tests::WatchDog watch(3000);
     // watch.start([&](){std::cout << "Dog watch !"; end=true;} ); // test 1 : with a function
     watch.start(); // test 2 with an exception
               
