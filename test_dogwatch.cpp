@@ -6,21 +6,21 @@ int main()
     std::cout << "Simple test of dogwatch"<<std::endl;
     bool end=false;
     tests::WatchDog watch(3000);
-    // watch.start([&](){std::cout << "Dog watch !"; end=true;} ); // test 1 : with a function
-    watch.start(); // test 2 with an exception
+    watch.start([&](){std::cout << "Dog watch !" << std::endl; end=true;} ); 
               
+    std::cout << "Waiting";
     while(!end)
     {
-        std::cout << "Do you want to end ?" << std::endl;
-        std::string response;
-        std::cin >> response;
-        if(response=="yes") 
-        {
-            watch.cancel();
-            end=true;
-        }
+        std::cout << ".";
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(3000)); // wait if dog watch is not cancelled !
+    
 
+    watch.start([](){std::cout<<"This dog watch never throws";});
+    std::cout << "Waiting again...";
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); 
+    watch.cancel();
+    std::cout << "cancelled."<<std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // wait if dog watch is not cancelled !
     std::cout << "good bye" << std::endl;
 }

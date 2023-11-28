@@ -70,7 +70,7 @@ namespace tests
                 if(timeout>0)
                 {
                     std::thread thread( [=](){
-                            if(!cancelled)
+                        if(!cancelled)
                         {
                             std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
                             if(!cancelled)
@@ -147,7 +147,7 @@ namespace tests
                 // loop and wait for one of the threads terminate
                 do
                 {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(TIME_SLEEP));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(TIME_SLEEP));                 
                 }
                 while(testing && !aborted);
 
@@ -164,17 +164,21 @@ namespace tests
 
         private:
             void print_header(){
-                output << "Start of unit tests.\r\n";
+                output << "Start of unit tests."<<std::endl;
             }
             void print_resume(){
-                output << "Tests ended. "<<passed<<" tests passed and "<<failed<<" failed.\r\n";
-                output << "Total test time is "<<chrono.time()<< " ms.\r\n";
+                output << "Tests ended. "<<passed<<" tests passed and "<<failed<<" failed." << std::endl;
+                output << "Total test time is "<<chrono.time()<< " ms."<<std::endl;
             }
             void print_result(std::string name, bool pass){
-                output << "\ttest "<<name << ((pass)?" passed.\r\n":" failed ") ;
+                output << "\ttest "<<name ;
+                if(pass)
+                    output << " passed." << std::endl;
+                else 
+                    output << " failed " ;
             }
             void newline(){
-                output << "\r\n";
+                output << std::endl;
             }
         protected:
         /**
@@ -184,7 +188,7 @@ namespace tests
 
             template<typename T> void print_values(const T& expected, const T& computed)
             {
-                output << expected<< " expected but "<<computed<<" gets.\r\n";
+                output << expected<< " expected but "<<computed<<" gets."<<std::endl;
             }
         /**
          * Assert a value is true
@@ -332,7 +336,7 @@ namespace tests
                 else
                     failed++;
                 print_result(name,pass);
-                if(!pass) output << "element not founded\r\n";
+                if(!pass) output << "element not founded"<<std::endl;
             }
         /**
          * Asserts a collection not contains a value
@@ -353,7 +357,7 @@ namespace tests
                 else
                     failed++;
                 print_result(name,pass);
-                if(!pass) output << "element founded\r\n";
+                if(!pass) output << "element founded"<<std::endl;
             }
         /**
          * Asserts two collections are identical (same elements in same order)
@@ -408,7 +412,7 @@ namespace tests
             {
                 bool pass = pointer==nullptr;
                 print_result(name,pass);
-                if(!pass) output << "pointer is not null !\r\n";
+                if(!pass) output << "pointer is not null !"<<std::endl;
             }
         /**
          * Asserts a pointer is not null
@@ -420,7 +424,7 @@ namespace tests
             void assert_not_null(const T* pointer, std::string name=""){
                 bool pass = pointer!=nullptr;
                 print_result(name,pass);
-                if(!pass) output << "pointer is null !\r\n";
+                if(!pass) output << "pointer is null !"<<std::endl;
             }
 
         /**
@@ -435,7 +439,7 @@ namespace tests
             void assert_same_type(const T1& value1, const T2& value2, std::string name=""){
                 bool pass = typeid(value1)==typeid(value2);
                 print_result(name,pass);
-                if(!pass) output << "not the same type !\r\n";
+                if(!pass) output << "not the same type !"<<std::endl;
             }
 
         /**
@@ -450,7 +454,7 @@ namespace tests
             void assert_not_same_type(const T1& value1, const T2& value2, std::string name=""){
                 bool pass = typeid(value1)!=typeid(value2);
                 print_result(name,pass);
-                if(!pass) output << "the same type !\r\n";
+                if(!pass) output << "the same type !"<<std::endl;
             }
     };
 }
