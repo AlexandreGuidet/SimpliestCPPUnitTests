@@ -32,3 +32,7 @@ The time of the whote test is computed and shown.
 
 ## Sample
 In the sample folder you will find a `Ratio` class and a simple test who use the framework. You juste have to build and run to show the test.
+
+## New in version 2
+A timeout is added (default: 30s) and tests are cancelled if their time is over. Prevents for loop tests. 
+If you want to make long tests (more than 30s in total) you must specify a longer timeout, or infinite timeout)
