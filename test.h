@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <chrono>
 #include <typeinfo>
+#include <thread>
 
 namespace tests
 {
@@ -38,6 +39,57 @@ namespace tests
                 return std::chrono::nanoseconds(stopTime-startTime).count()/1000000.0;
             }
     };
+    
+/**
+ * Simple watchdog inspired by J. Boccara Timer
+ * @see https://www.fluentcpp.com/2018/12/28/timer-cpp/
+*/
+    class WatchDog
+    {
+        private:            
+            bool cancelled;
+            int timeout;
+        public:
+        /**
+         * Initialize the dog watch 
+         * @param timeoutMS the timeout, in milliseconds (0=no timeout)
+         * note : the dog watch is not started yet
+        */
+            WatchDog(int timeoutMS): cancelled(false), timeout(timeoutMS){}
+
+        /**
+         * start the dog watch
+         * @param function the function to call when the time out occurs
+         * @tparam F the type of function (assumes that is no parameters)
+         * do nothing if timeout is 0
+        */
+            template <typename F>
+            void start(F&& function)
+            {
+                cancelled=false;
+                if(timeout>0)
+                {
+                    std::thread thread( [=](){
+                        if(!cancelled)
+                        {
+                            std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+                            if(!cancelled)
+                                function();
+                        }
+                    } );                
+                    thread.detach();
+                }
+                
+            }    
+       
+            void cancel()
+            {
+                cancelled=true;
+            }       
+
+    };
+
+#define TIME_SLEEP 50
 
     /**
      * Very simple class to make units tests in C++
@@ -46,7 +98,7 @@ namespace tests
      * It computes the times taken for tests
      * All outputs are sent to an standard output stream (who may be std::cout but not only)
      * @author alexandre guidet
-     * @version 1
+     * @version 2
      * @see https://github.com/AlexandreGuidet/SimpliestCPPUnitTests     
     */
     class Test
@@ -56,45 +108,77 @@ namespace tests
             int passed;
             std::ostream& output;
             Chrono chrono;
+            WatchDog watch;
+            bool testing;
+
+            void run_test()
+            {
+                testing=true;
+                try{                                                          
+                    test_code();                                         
+                }
+                catch(...){
+                    fail("*** exception occurs ***");
+                    failed++;
+                }           
+                testing=false;      
+            }
         public:
         /**
          * Initialize the test. 
          * @param output the stream to output the tests (default : the standard output)
+         * @param timeout the timeout to cancel tests if it loops (default : 30s). If 0, their is no timeout and the tests may be looping infinite
         */
-            Test(std::ostream& output=std::cout) : output(output), failed(0),passed(0){}
+            Test(std::ostream& output=std::cout, int timeout=30000) : output(output), failed(0),passed(0), watch(timeout){}
             virtual ~Test(){}
         /**
-         * Runs the test and outputs the results on the stream
+         * Runs the test (with control of watchdog) and outputs the results on the stream
         */
             void run(){
                 failed=0;
                 passed=0;
                 print_header();
-                chrono.start();
-                try{                    
-                    test_code();                    
+                chrono.start();      
+                
+                bool aborted=false;                
+                watch.start([&aborted](){aborted=true;});  
+                std::thread test_thread( [this](){run_test();} );
+                
+                // loop and wait for one of the threads terminate
+                do
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(TIME_SLEEP));                 
                 }
-                catch(...){
-                    fail("*** exception occurs ***");
-                    failed++;
-                }                                
+                while(testing && !aborted);
+
+                if(aborted){                    
+                    fail("**** Timeout : the test does not respond ****");                    
+                }
+                else
+                    watch.cancel();   // no need to watchdog any more             
+
+                test_thread.detach();                  
                 chrono.stop();
                 print_resume();                
             }
 
         private:
             void print_header(){
-                output << "Start of unit tests.\r\n";
+                output << "Start of unit tests."<<std::endl;
             }
             void print_resume(){
-                output << "Tests ended. "<<passed<<" tests passed and "<<failed<<" failed.\r\n";
-                output << "Total test time is "<<chrono.time()<< " ms.\r\n";
+                output << "Tests ended. "<<passed<<" tests passed and "<<failed<<" failed." << std::endl;
+                output << "Total test time is "<<chrono.time()<< " ms."<<std::endl;
             }
             void print_result(std::string name, bool pass){
-                output << "\ttest "<<name << ((pass)?" passed.\r\n":" failed ") ;
+                output << "\ttest "<<name ;
+                if(pass)
+                    output << " passed." << std::endl;
+                else 
+                    output << " failed " ;
             }
             void newline(){
-                output << "\r\n";
+                output << std::endl;
             }
         protected:
         /**
@@ -104,7 +188,7 @@ namespace tests
 
             template<typename T> void print_values(const T& expected, const T& computed)
             {
-                output << expected<< " expected but "<<computed<<" gets.\r\n";
+                output << expected<< " expected but "<<computed<<" gets."<<std::endl;
             }
         /**
          * Assert a value is true
@@ -252,7 +336,7 @@ namespace tests
                 else
                     failed++;
                 print_result(name,pass);
-                if(!pass) output << "element not founded\r\n";
+                if(!pass) output << "element not founded"<<std::endl;
             }
         /**
          * Asserts a collection not contains a value
@@ -273,7 +357,7 @@ namespace tests
                 else
                     failed++;
                 print_result(name,pass);
-                if(!pass) output << "element founded\r\n";
+                if(!pass) output << "element founded"<<std::endl;
             }
         /**
          * Asserts two collections are identical (same elements in same order)
@@ -328,7 +412,7 @@ namespace tests
             {
                 bool pass = pointer==nullptr;
                 print_result(name,pass);
-                if(!pass) output << "pointer is not null !\r\n";
+                if(!pass) output << "pointer is not null !"<<std::endl;
             }
         /**
          * Asserts a pointer is not null
@@ -340,7 +424,7 @@ namespace tests
             void assert_not_null(const T* pointer, std::string name=""){
                 bool pass = pointer!=nullptr;
                 print_result(name,pass);
-                if(!pass) output << "pointer is null !\r\n";
+                if(!pass) output << "pointer is null !"<<std::endl;
             }
 
         /**
@@ -355,7 +439,7 @@ namespace tests
             void assert_same_type(const T1& value1, const T2& value2, std::string name=""){
                 bool pass = typeid(value1)==typeid(value2);
                 print_result(name,pass);
-                if(!pass) output << "not the same type !\r\n";
+                if(!pass) output << "not the same type !"<<std::endl;
             }
 
         /**
@@ -370,7 +454,7 @@ namespace tests
             void assert_not_same_type(const T1& value1, const T2& value2, std::string name=""){
                 bool pass = typeid(value1)!=typeid(value2);
                 print_result(name,pass);
-                if(!pass) output << "the same type !\r\n";
+                if(!pass) output << "the same type !"<<std::endl;
             }
     };
 }
