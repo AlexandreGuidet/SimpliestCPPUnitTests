@@ -52,7 +52,7 @@ namespace tests
         public:
         /**
          * Initialize the dog watch 
-         * @param timeoutMS the timeout, in milliseconds
+         * @param timeoutMS the timeout, in milliseconds (0=no timeout)
          * note : the dog watch is not started yet
         */
             WatchDog(int timeoutMS): cancelled(false), timeout(timeoutMS){}
@@ -61,20 +61,25 @@ namespace tests
          * start the dog watch
          * @param function the function to call when the time out occurs
          * @tparam F the type of function (assumes that is no parameters)
+         * do nothing if timeout is 0
         */
             template <typename F>
             void start(F&& function)
             {
                 cancelled=false;
-                std::thread thread( [=](){
-                    if(!cancelled)
-                    {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
-                        if(!cancelled)
-                            function();
-                    }
-                } );                
-                thread.detach();
+                if(timeout>0)
+                {
+                    std::thread thread( [=](){
+                            if(!cancelled)
+                        {
+                            std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+                            if(!cancelled)
+                                function();
+                        }
+                    } );                
+                    thread.detach();
+                }
+                
             }    
        
             void cancel()
@@ -122,7 +127,7 @@ namespace tests
         /**
          * Initialize the test. 
          * @param output the stream to output the tests (default : the standard output)
-         * @param timeout the timeout to cancel tests if it loops (default : 30s)
+         * @param timeout the timeout to cancel tests if it loops (default : 30s). If 0, their is no timeout and the tests may be looping infinite
         */
             Test(std::ostream& output=std::cout, int timeout=30000) : output(output), failed(0),passed(0), watch(timeout){}
             virtual ~Test(){}
@@ -135,7 +140,7 @@ namespace tests
                 print_header();
                 chrono.start();      
                 
-                bool aborted=false;
+                bool aborted=false;                
                 watch.start([&aborted](){aborted=true;});  
                 std::thread test_thread( [this](){run_test();} );
                 
