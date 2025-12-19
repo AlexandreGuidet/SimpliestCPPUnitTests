@@ -159,6 +159,10 @@ namespace tests
 			template <typename T> 
 			void assert_equal(const T& expected, const T& value,std::string name=""){
 				bool pass=expected==value;
+				// special case for nan
+				if (std::isnan(expected) && std::isnan(value))
+					pass = true;
+				
 				if(!pass)
 					failed++;
 				else passed++;
@@ -375,5 +379,6 @@ namespace tests
 			}
 	};
 }
+
 
 #endif
